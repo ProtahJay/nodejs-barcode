@@ -59,7 +59,8 @@ app.get('/', (req, res) => {
 
 // Route to render the admin control panel
 app.get('/admin', (req, res) => {
-  res.render('admin/admin', { scanners });
+  const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+  res.render('admin/admin', { scanners: sortedScanners });
 });
 
 // Create routes for the web UI
@@ -75,6 +76,14 @@ app.post('/config', (req, res) => {
     port: parseInt(port),
   };
   scanners.push(scanner);
+  saveScannersToFile(); // Save scanners to file
+  res.redirect('/admin'); // Redirect to refresh the admin panel
+});
+
+// Route to remove a scanner
+app.post('/remove', (req, res) => {
+  const { name } = req.body;
+  scanners = scanners.filter((scanner) => scanner.name !== name);
   saveScannersToFile(); // Save scanners to file
   res.redirect('/admin'); // Redirect to refresh the admin panel
 });

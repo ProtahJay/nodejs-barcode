@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<BarcodeData>
+  <Barcode>GET / HTTP/1.1&#xD;
+Host: localhost:3000&#xD;
+Connection: keep-alive&#xD;
+Cache-Control: max-age=0&#xD;
+sec-ch-ua: "Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"&#xD;
+sec-ch-ua-mobile: ?0&#xD;
+sec-ch-ua-platform: "Windows"&#xD;
+Upgrade-Insecure-Requests: 1&#xD;
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36&#xD;
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7&#xD;
+Sec-Fetch-Site: none&#xD;
+Sec-Fetch-Mode: navigate&#xD;
+Sec-Fetch-User: ?1&#xD;
+Sec-Fetch-Dest: document&#xD;
+Accept-Language: en-US,en;q=0.9&#xD;
+Accept-Encoding: gzip, deflate</Barcode>
+</BarcodeData><?xml version="1.0"?>
+<BarcodeData>
+  <Barcode>GET /admin HTTP/1.1&#xD;
+Host: localhost:3000&#xD;
+Connection: keep-alive&#xD;
+Cache-Control: max-age=0&#xD;
+sec-ch-ua: "Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"&#xD;
+sec-ch-ua-mobile: ?0&#xD;
+sec-ch-ua-platform: "Windows"&#xD;
+Upgrade-Insecure-Requests: 1&#xD;
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36&#xD;
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7&#xD;
+Sec-Fetch-Site: none&#xD;
+Sec-Fetch-Mode: navigate&#xD;
+Sec-Fetch-User: ?1&#xD;
+Sec-Fetch-Dest: document&#xD;
+Accept-Language: en-US,en;q=0.9&#xD;
+If-None-Match: W/"cb9-Q9SqDp90kaLqn1zrmn4NuBEz+cY"&#xD;
+Accept-Encoding: gzip, deflate</Barcode>
+</BarcodeData>

@@ -11,7 +11,13 @@
 
       <h2 class="subtitle">Add Barcode Scanner</h2>
 
-      <form method="POST" action="/config">
+      <% if (error) { %>
+        <div class="notification is-danger">
+          <%= error %>
+        </div>
+      <% } %>
+
+      <form id="addScannerForm" method="POST" action="/config">
         <div class="field">
           <label class="label">Scanner Name</label>
           <div class="control">
@@ -58,5 +64,9 @@
       <% } %>
     </div>
   </section>
+
+  <script>
+    // ...
+  </script>
 </body>
 </html>

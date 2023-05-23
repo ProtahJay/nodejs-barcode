@@ -3,7 +3,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
-const { Builder } = require('xmlbuilder');
 const moment = require('moment');
 
 const app = express();
@@ -17,42 +16,73 @@ console.log('scannersFilePath:', scannersFilePath);
 
 let scanners = [];
 
-// Create a socket server
-const server = net.createServer((socket) => {
-  socket.on('data', (data) => {
-    const barcodeData = data.toString().trim();
-    const scannerName = socket.remoteAddress + ':' + socket.remotePort;
+// Create a socket server for each scanner
+function createSocketServer(scanner) {
+  const { name, host, port } = scanner;
 
-    // Create directory for scanner (if it doesn't exist)
-    const scannerDir = path.join(scannersDir, scannerName);
-    if (!fs.existsSync(scannerDir)) {
-      fs.mkdirSync(scannerDir);
-    }
-
-    // Process and save the barcode data to XML files
-    const date = moment().format('YYYY-MM-DD');
-    const fileName = `${date}.xml`;
-    const filePath = path.join(scannerDir, fileName);
-
-    const xmlRoot = Builder.create('BarcodeData');
-    const barcodeElement = xmlRoot.ele('Barcode');
-    barcodeElement.txt(barcodeData);
-
-    const xmlString = xmlRoot.end({ pretty: true });
-
-    fs.appendFileSync(filePath, xmlString);
+  const socket = net.createConnection(port, host, () => {
+    console.log(`Connected to scanner ${name} at ${host}:${port}`);
   });
-});
 
-// Set up the views directory and view engine
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
+  let barcodeData = ''; // Accumulate barcode data
+
+  socket.on('data', (data) => {
+    const newData = data.toString().trim();
+
+    // Check if the accumulated barcode data plus new data results in a complete barcode
+    const completeBarcode = checkCompleteBarcode(barcodeData + newData);
+
+    if (completeBarcode) {
+      const barcode = barcodeData + newData;
+      const scannerName = name;
+
+      // Create directory for scanner (if it doesn't exist)
+      const scannerDir = path.join(scannersDir, scannerName);
+      if (!fs.existsSync(scannerDir)) {
+        fs.mkdirSync(scannerDir, { recursive: true });
+      }
+
+      // Process and save the barcode data to XML file
+      const currentDate = moment().format('YYYY-MM-DD');
+      const fileName = `${scannerName}_${currentDate}.xml`;
+      const filePath = path.join(scannerDir, fileName);
+
+      const xmlData = `<BarcodeData><Barcode>${barcode}</Barcode></BarcodeData>`;
+
+      fs.appendFileSync(filePath, xmlData);
+
+      barcodeData = ''; // Reset accumulated barcode data for the next barcode
+    } else {
+      barcodeData += newData; // Append new data to accumulated barcode data
+    }
+  });
+
+  socket.on('error', (error) => {
+    console.error(`Error occurred for scanner ${name} at ${host}:${port}:`, error);
+  });
+}
+
+// Function to check if the accumulated data forms a complete barcode
+function checkCompleteBarcode(data) {
+  // Modify this function to implement the logic for checking if the data forms a complete barcode
+  // You can check for a specific length, end-of-line character, or any other pattern that indicates a complete barcode
+  // Return true if a complete barcode is detected, otherwise return false
+
+  // Example: Check for a specific length of barcode
+  return data.length >= 10;
+}
+
 
 // Load scanners from file on server start
 function loadScannersFromFile() {
   if (fs.existsSync(scannersFilePath)) {
     const scannersData = fs.readFileSync(scannersFilePath, 'utf8');
     scanners = JSON.parse(scannersData);
+
+    // Create socket server for each scanner
+    scanners.forEach((scanner) => {
+      createSocketServer(scanner);
+    });
   }
 }
 
@@ -61,6 +91,10 @@ function saveScannersToFile() {
   const scannersData = JSON.stringify(scanners);
   fs.writeFileSync(scannersFilePath, scannersData, 'utf8');
 }
+
+// Set up the views directory and view engine
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
 // Default route for the root path
 app.route('/')
@@ -85,7 +119,7 @@ app.get('/admin', (req, res) => {
   res.render('admin/admin', { scanners: sortedScanners, scannerExists });
 });
 
-// Route to handle errors when adding a scanner
+// Route to handle scanner configuration form submission
 app.post('/config', (req, res) => {
   const { name, host, port } = req.body;
   const scanner = {
@@ -104,44 +138,13 @@ app.post('/config', (req, res) => {
 
   scanners.push(scanner);
   saveScannersToFile(); // Save scanners to file
+  createSocketServer(scanner); // Create socket server for the new scanner
   res.redirect('/admin'); // Redirect to refresh the admin panel
 });
 
-// Route to remove a scanner
-app.post('/remove', (req, res) => {
-  const { name } = req.body;
-  scanners = scanners.filter((scanner) => scanner.name !== name);
-  saveScannersToFile(); // Save scanners to file
-  res.redirect('/admin'); // Redirect to refresh the admin panel
-});
-
-// Route to create a scanner directory
-app.post('/create-directory', (req, res) => {
-  const { scannerName } = req.body;
-  const scannerDir = path.join(scannersDir, scannerName);
-
-  console.log('Received scannerName:', scannerName);
-  console.log('Target directory:', scannerDir);
-
-  if (!fs.existsSync(scannerDir)) {
-    fs.mkdirSync(scannerDir);
-    console.log('Directory created:', scannerDir);
-    res.sendStatus(200);
-  } else {
-    console.log('Directory already exists:', scannerDir);
-    res.status(400).send('Directory already exists');
-  }
-});
-
-// Start the server and socket
+// Start the server
 const port = 3000;
-const socketPort = 9898; // Socket port for serial I/O
-
-server.listen(socketPort, () => {
-  console.log(`Socket server listening on port ${socketPort}`);
-  loadScannersFromFile(); // Load scanners from file on server start
-});
-
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
+  loadScannersFromFile(); // Load scanners from file and create socket servers on server start
 });

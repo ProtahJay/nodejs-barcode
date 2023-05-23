@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Panel</title>
+  <link rel="stylesheet" href="/node_modules/bulma/css/bulma.min.css">
+</head>
+<body>
+  <section class="section">
+    <div class="container">
+      <h1 class="title">User Panel</h1>
+
+      <h2 class="subtitle">Select Scanners</h2>
+
+      <form id="selectScannersForm" method="POST" action="/">
+        <div class="field">
+          <label class="label">Scanners</label>
+          <div class="control">
+            <% if (scanners.length > 0) { %>
+              <% scanners.forEach(function(scanner) { %>
+                <label class="checkbox">
+                  <input type="checkbox" name="selectedScanners" value="<%= scanner.name %>">
+                  <%= scanner.name %> - <%= scanner.host %>:<%= scanner.port %>
+                </label>
+              <% }); %>
+            <% } else { %>
+              <p>No scanners configured.</p>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <button class="button is-primary" type="submit">Submit</button>
+          </div>
+        </div>
+      </form>
+
+      <% if (selectedScanners.length > 0) { %>
+        <h2 class="subtitle">Selected Scanners</h2>
+        <ul>
+          <% selectedScanners.forEach(function(scanner) { %>
+            <li><%= scanner %></li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </div>
+  </section>
+
+  <script>
+    const selectScannersForm = document.getElementById('selectScannersForm');
+
+    selectScannersForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const selectedScanners = Array.from(document.querySelectorAll('input[name="selectedScanners"]:checked'))
+        .map((input) => input.value);
+
+      console.log(selectedScanners); // Log the selected scanners
+
+      // Submit the form
+      selectScannersForm.submit();
+    });
+  </script>
+
+</body>
+</html>

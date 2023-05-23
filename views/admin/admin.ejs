@@ -11,12 +11,6 @@
 
       <h2 class="subtitle">Add Barcode Scanner</h2>
 
-      <% if (error) { %>
-        <div class="notification is-danger">
-          <%= error %>
-        </div>
-      <% } %>
-
       <form id="addScannerForm" method="POST" action="/config">
         <div class="field">
           <label class="label">Scanner Name</label>
@@ -44,6 +38,9 @@
             <button class="button is-primary" type="submit">Add Scanner</button>
           </div>
         </div>
+
+        <p id="errorMessage" class="help is-danger"></p> <!-- Display error message -->
+
       </form>
 
       <h2 class="subtitle">Currently Configured Scanners</h2>
@@ -62,11 +59,99 @@
       <% } else { %>
         <p>No scanners configured.</p>
       <% } %>
+      
+      <% if (scannerExists) { %>
+        <div class="notification is-danger">
+          Directory already exists for scanner <%= scannerExists %>.
+        </div>
+      <% } %>      
+      
     </div>
   </section>
 
   <script>
-    // ...
+    const addScannerForm = document.getElementById('addScannerForm');
+
+    addScannerForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const scannerName = document.querySelector('input[name="name"]').value;
+
+      fetch('/create-directory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scannerName })
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error('Failed to create directory');
+          }
+        })
+        .then((data) => {
+          console.log(data.message); // Log the response message
+          refreshAdminPanel(); // Update the admin panel
+        })
+        .catch((error) => {
+          console.error('An error occurred:', error);
+          const errorMessage = document.getElementById('errorMessage');
+          errorMessage.textContent = error.message; // Display the error message
+        });
+
+      // Submit the form
+      addScannerForm.submit();
+    });
+
+    function refreshAdminPanel() {
+      fetch('/config')
+        .then((response) => response.json())
+        .then((data) => {
+          const scannersList = document.getElementById('scannersList');
+          scannersList.innerHTML = ''; // Clear the existing list
+
+          if (data.length > 0) {
+            data.sort((a, b) => a.name.localeCompare(b.name));
+
+            data.forEach((scanner) => {
+              const listItem = document.createElement('li');
+              listItem.textContent = `${scanner.name} - ${scanner.host}:${scanner.port}`;
+
+              const removeForm = document.createElement('form');
+              removeForm.method = 'POST';
+              removeForm.action = '/remove';
+
+              const removeInput = document.createElement('input');
+              removeInput.type = 'hidden';
+              removeInput.name = 'name';
+              removeInput.value = scanner.name;
+
+              const removeButton = document.createElement('button');
+              removeButton.classList.add('button', 'is-danger');
+              removeButton.type = 'submit';
+              removeButton.textContent = 'Remove';
+
+              removeForm.appendChild(removeInput);
+              removeForm.appendChild(removeButton);
+              listItem.appendChild(removeForm);
+              scannersList.appendChild(listItem);
+            });
+          } else {
+            const noScannersMessage = document.createElement('p');
+            noScannersMessage.textContent = 'No scanners configured.';
+            scannersList.appendChild(noScannersMessage);
+          }
+        })
+        .catch((error) => {
+          console.error('An error occurred:', error);
+        });
+    }
+
+    // Initial loading of the admin panel
+    refreshAdminPanel();
   </script>
+
 </body>
 </html>

@@ -22,7 +22,7 @@ const server = net.createServer((socket) => {
   socket.on('data', (data) => {
     const barcodeData = data.toString().trim();
     const scannerName = socket.remoteAddress + ':' + socket.remotePort;
-    
+
     // Create directory for scanner (if it doesn't exist)
     const scannerDir = path.join(scannersDir, scannerName);
     if (!fs.existsSync(scannerDir)) {
@@ -63,14 +63,26 @@ function saveScannersToFile() {
 }
 
 // Default route for the root path
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
+app.route('/')
+  .get((req, res) => {
+    const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    res.render('user/users', { scanners: sortedScanners, selectedScanners: [] }); // Pass an empty array initially
+  })
+  .post((req, res) => {
+    const selectedScanners = req.body.scanners || []; // Retrieve the selected scanners from the form submission
+    // Process the selected scanners as needed
+    // Example: Save the selected scanners to a file or perform other operations
+
+    // Render the users.ejs view with the selected scanners
+    const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    res.render('user/users', { scanners: sortedScanners, selectedScanners });
+  });
 
 // Route to render the admin control panel
 app.get('/admin', (req, res) => {
   const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-  res.render('admin/admin', { scanners: sortedScanners, error: null });
+  const scannerExists = req.query.scannerExists; // Retrieve the value from the query parameter
+  res.render('admin/admin', { scanners: sortedScanners, scannerExists });
 });
 
 // Route to handle errors when adding a scanner
@@ -82,36 +94,11 @@ app.post('/config', (req, res) => {
     port: parseInt(port),
   };
 
-  // Check if scanner with the same name already exists
-  const existingScanner = scanners.find((s) => s.name === scanner.name);
-  if (existingScanner) {
-    res.render('admin/admin', { scanners, error: 'Scanner name already exists' });
-    return;
-  }
-
-  scanners.push(scanner);
-  saveScannersToFile(); // Save scanners to file
-  res.redirect('/admin'); // Redirect to refresh the admin panel
-});
-
-// Create routes for the web UI
-app.get('/config', (req, res) => {
-  res.json(scanners);
-});
-
-app.post('/config', (req, res) => {
-  const { name, host, port } = req.body;
-  const scanner = {
-    name,
-    host,
-    port: parseInt(port),
-  };
-  
   // Check if the scanner already exists
-  const existingScanner = scanners.find(s => s.name === name);
+  const existingScanner = scanners.find((s) => s.name === name);
   if (existingScanner) {
     const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-    res.render('admin/admin', { scanners: sortedScanners, error: 'Scanner already exists' });
+    res.render('admin/admin', { scanners: sortedScanners, scannerExists: name });
     return;
   }
 

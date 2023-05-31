@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
+const xmlParser = require('./xmlparser.js');
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -45,7 +46,7 @@ function createSocketServer(scanner) {
 
       // Process and save the barcode data to XML file
       const currentDate = moment().format('YYYY-MM-DD');
-      const fileName = `${scannerName}_${currentDate}.xml`;
+      const fileName = `${scannerName}~${currentDate}.xml`;
       const filePath = path.join(scannerDir, fileName);
 
       const xmlData = `<BarcodeData><Barcode>${barcode}</Barcode></BarcodeData>`;
@@ -139,6 +140,49 @@ function saveScannersToFile() {
   fs.writeFileSync(scannersFilePath, scannersData, 'utf8');
 }
 
+// Function to parse and handle XML data
+async function handleXmlData() {
+  const xmlData = [];
+
+  for (const scanner of scanners) {
+    console.log('Processing scanner:', scanner.name); // Log the scanner being processed
+
+    try {
+      const scannerXmlData = await getLatestXmlDataFromFile(scanner);
+      const parsedXmlData = await xmlParser.parseXml(scannerXmlData);
+
+      const extractedInfo = xmlParser.extractInformation(parsedXmlData);
+      xmlData.push({
+        scanner: scanner.name,
+        xmlData: extractedInfo,
+      });
+
+      console.log('Retrieved and parsed latest XML data from file for scanner:', scanner.name);
+
+      // Include the code snippet here
+      console.log('Extracted information:');
+      console.log(extractedInfo);
+    } catch (error) {
+      console.error('Error occurred while retrieving and parsing latest XML data from file for scanner:', scanner.name);
+      console.error(error);
+    }
+  }
+
+  console.log('Final XML data:', xmlData); // Log the final XML data
+
+  // Return the XML data as a JSON response or perform any desired action
+}
+
+// Watch the XML file for changes
+function watchXmlFile() {
+  fs.watch(scannersDir, { persistent: true }, (eventType, filename) => {
+    if (eventType === 'change' && filename.endsWith('.xml')) {
+      console.log(`Detected changes in XML file: ${filename}`);
+      handleXmlData();
+    }
+  });
+}
+
 // Set up the views directory and view engine
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -198,11 +242,6 @@ app.post('/config', (req, res) => {
     port: parseInt(port),
   };
 
-  // Process the scanner configuration as needed
-  // Example: Save the scanner configuration to a file or perform other operations
-
-  // Placeholder comment: Add your processing logic here
-
   scanners.push(scanner);
   saveScannersToFile(); // Save scanners to file
   createSocketServer(scanner); // Create socket server for the new scanner
@@ -212,34 +251,42 @@ app.post('/config', (req, res) => {
 // Route to handle selected scanner form submission
 app.post('/selected-scanners', async (req, res) => {
   console.log('Request body:', req.body); // Log the request body
-    // If req.body.selectedScanners is not an array, make it an array
-    let selectedScannersNames = req.body.selectedScanners;
-    if (!Array.isArray(selectedScannersNames)) {
-      selectedScannersNames = [selectedScannersNames];
-    }
+
+  let selectedScannersNames = req.body.selectedScanners;
+  if (!Array.isArray(selectedScannersNames)) {
+    selectedScannersNames = [selectedScannersNames];
+  }
 
   console.log('Selected scanners:', selectedScannersNames); // Log the selected scanners
 
-  // Placeholder comment: Add your processing logic here to retrieve the latest XML data from files for selected scanners
   const xmlData = [];
 
   for (const scannerName of selectedScannersNames) {
     console.log('Processing scanner:', scannerName); // Log the scanner being processed
 
-    const scanner = scanners.find(s => s.name === scannerName);
+    const scanner = scanners.find((s) => s.name === scannerName);
     if (!scanner) {
       console.log(`Scanner ${scannerName} not found`);
       continue;
     }
 
     try {
-      // Perform actions to retrieve the latest XML data from file for each scanner
-      const scannerXmlData = await getLatestXmlDataFromFile(scanner); // Replace `getLatestXmlDataFromFile` with your actual implementation
-      xmlData.push({ scanner: scanner.name, xmlData: scannerXmlData });
+      const scannerXmlData = await getLatestXmlDataFromFile(scanner);
+      const parsedXmlData = await xmlParser.parseXml(scannerXmlData);
 
-      console.log('Retrieved latest XML data from file for scanner:', scanner.name); // Log the retrieved XML data for the scanner
+      const extractedInfo = xmlParser.extractInformation(parsedXmlData);
+      xmlData.push({
+        scanner: scanner.name,
+        xmlData: extractedInfo,
+      });
+
+      console.log('Retrieved and parsed latest XML data from file for scanner:', scanner.name);
+
+      // Include the code snippet here
+      console.log('Extracted information:');
+      console.log(extractedInfo);
     } catch (error) {
-      console.error('Error occurred while retrieving latest XML data from file for scanner:', scanner.name);
+      console.error('Error occurred while retrieving and parsing latest XML data from file for scanner:', scanner.name);
       console.error(error);
     }
   }
@@ -250,9 +297,10 @@ app.post('/selected-scanners', async (req, res) => {
   res.json(xmlData);
 });
 
-// Start the server
 const port = 3000;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
   loadScannersFromFile(); // Load scanners from file and create socket servers on server start
+  handleXmlData(); // Initial handling of XML data
+  watchXmlFile(); // Start watching the XML files for changes
 });

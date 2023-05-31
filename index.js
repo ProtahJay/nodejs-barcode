@@ -8,6 +8,7 @@ const moment = require('moment');
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const scannersDir = path.join(__dirname, 'scanners');
 const scannersFilePath = path.join(__dirname, 'scanners.json');
@@ -72,12 +73,58 @@ function checkCompleteBarcode(data) {
   return data.length >= 10;
 }
 
+// Function to retrieve the latest XML data from a file
+async function getLatestXmlDataFromFile(scanner) {
+  console.log('Fetching latest XML data from file for scanner:', scanner); // Log the scanner for which XML data is being fetched
+
+  return new Promise((resolve, reject) => {
+    // Create the file path for the scanner's XML data
+    const filePath = path.join(scannersDir, scanner.name);
+
+    // Read the directory contents to get the list of XML files
+    fs.readdir(filePath, (err, files) => {
+      if (err) {
+        console.error('Error occurred while reading XML files for scanner:', scanner.name);
+        reject(err);
+      } else {
+        // Sort the files based on modification time to get the latest file
+        const sortedFiles = files.sort((a, b) => {
+          const fileA = fs.statSync(path.join(filePath, a));
+          const fileB = fs.statSync(path.join(filePath, b));
+          return fileB.mtime.getTime() - fileA.mtime.getTime();
+        });
+
+        if (sortedFiles.length > 0) {
+          const latestFilePath = path.join(filePath, sortedFiles[0]);
+
+          // Read the content of the latest XML file
+          fs.readFile(latestFilePath, 'utf8', (error, data) => {
+            if (error) {
+              console.error('Error occurred while reading latest XML data from file for scanner:', scanner.name);
+              reject(error);
+            } else {
+              console.log('Read latest XML data from file for scanner:', scanner.name);
+              console.log('XML Data:', data); // Log the read XML data
+              resolve(data);
+            }
+          });
+        } else {
+          // No XML files found for the scanner
+          console.log('No XML data available for scanner:', scanner.name);
+          resolve(null);
+        }
+      }
+    });
+  });
+}
 
 // Load scanners from file on server start
 function loadScannersFromFile() {
   if (fs.existsSync(scannersFilePath)) {
     const scannersData = fs.readFileSync(scannersFilePath, 'utf8');
+    console.log('scannersData:', scannersData); // Check the value of scannersData
     scanners = JSON.parse(scannersData);
+    console.log('scanners:', scanners); // Check the value of scanners
 
     // Create socket server for each scanner
     scanners.forEach((scanner) => {
@@ -103,13 +150,36 @@ app.route('/')
     res.render('user/users', { scanners: sortedScanners, selectedScanners: [] }); // Pass an empty array initially
   })
   .post((req, res) => {
-    const selectedScanners = req.body.scanners || []; // Retrieve the selected scanners from the form submission
+    const selectedScanners = Array.isArray(req.body.selectedScanners) ? req.body.selectedScanners : [];
+    console.log('Request body:', req.body); // Log the request body
+
     // Process the selected scanners as needed
     // Example: Save the selected scanners to a file or perform other operations
+
+    // Placeholder comment: Add your processing logic here
 
     // Render the users.ejs view with the selected scanners
     const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     res.render('user/users', { scanners: sortedScanners, selectedScanners });
+
+    // Display the scanner data on the page (example: replace 'console.log' with the appropriate code)
+    const selectedScannersList = document.getElementById('selectedScannersList');
+    selectedScannersList.innerHTML = ''; // Clear the existing list
+
+    if (selectedScanners.length > 0) {
+      selectedScanners.forEach((scanner) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = scanner;
+        selectedScannersList.appendChild(listItem);
+      });
+    } else {
+      const noScannersMessage = document.createElement('li');
+      noScannersMessage.textContent = 'No scanners selected.';
+      selectedScannersList.appendChild(noScannersMessage);
+    }
+
+    // Refresh the page to clear the form (optional)
+    // window.location.reload();
   });
 
 // Route to render the admin control panel
@@ -128,18 +198,56 @@ app.post('/config', (req, res) => {
     port: parseInt(port),
   };
 
-  // Check if the scanner already exists
-  const existingScanner = scanners.find((s) => s.name === name);
-  if (existingScanner) {
-    const sortedScanners = scanners.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-    res.render('admin/admin', { scanners: sortedScanners, scannerExists: name });
-    return;
-  }
+  // Process the scanner configuration as needed
+  // Example: Save the scanner configuration to a file or perform other operations
+
+  // Placeholder comment: Add your processing logic here
 
   scanners.push(scanner);
   saveScannersToFile(); // Save scanners to file
   createSocketServer(scanner); // Create socket server for the new scanner
   res.redirect('/admin'); // Redirect to refresh the admin panel
+});
+
+// Route to handle selected scanner form submission
+app.post('/selected-scanners', async (req, res) => {
+  console.log('Request body:', req.body); // Log the request body
+    // If req.body.selectedScanners is not an array, make it an array
+    let selectedScannersNames = req.body.selectedScanners;
+    if (!Array.isArray(selectedScannersNames)) {
+      selectedScannersNames = [selectedScannersNames];
+    }
+
+  console.log('Selected scanners:', selectedScannersNames); // Log the selected scanners
+
+  // Placeholder comment: Add your processing logic here to retrieve the latest XML data from files for selected scanners
+  const xmlData = [];
+
+  for (const scannerName of selectedScannersNames) {
+    console.log('Processing scanner:', scannerName); // Log the scanner being processed
+
+    const scanner = scanners.find(s => s.name === scannerName);
+    if (!scanner) {
+      console.log(`Scanner ${scannerName} not found`);
+      continue;
+    }
+
+    try {
+      // Perform actions to retrieve the latest XML data from file for each scanner
+      const scannerXmlData = await getLatestXmlDataFromFile(scanner); // Replace `getLatestXmlDataFromFile` with your actual implementation
+      xmlData.push({ scanner: scanner.name, xmlData: scannerXmlData });
+
+      console.log('Retrieved latest XML data from file for scanner:', scanner.name); // Log the retrieved XML data for the scanner
+    } catch (error) {
+      console.error('Error occurred while retrieving latest XML data from file for scanner:', scanner.name);
+      console.error(error);
+    }
+  }
+
+  console.log('Final XML data:', xmlData); // Log the final XML data
+
+  // Return the XML data as a JSON response
+  res.json(xmlData);
 });
 
 // Start the server

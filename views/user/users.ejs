@@ -2,7 +2,17 @@
 <html>
 <head>
   <title>User Panel</title>
-  <link rel="stylesheet" href="/node_modules/bulma/css/bulma.min.css">
+  <link rel="stylesheet" href="/bulma.min.css">
+  <style>
+    .scanner-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .scanner-item {
+      margin-bottom: 5px;
+    }
+  </style>
 </head>
 <body>
   <section class="section">
@@ -11,16 +21,18 @@
 
       <h2 class="subtitle">Select Scanners</h2>
 
-      <form id="selectScannersForm" method="POST" action="/">
+      <form id="selectScannersForm" method="POST" action="/selected-scanners">
         <div class="field">
           <label class="label">Scanners</label>
-          <div class="control">
+          <div class="control scanner-list">
             <% if (scanners.length > 0) { %>
               <% scanners.forEach(function(scanner) { %>
-                <label class="checkbox">
-                  <input type="checkbox" name="selectedScanners" value="<%= scanner.name %>">
-                  <%= scanner.name %> - <%= scanner.host %>:<%= scanner.port %>
-                </label>
+                <div class="scanner-item">
+                  <label class="checkbox">
+                    <input type="checkbox" name="selectedScanners" value="<%= scanner.name %>">
+                    <%= scanner.name %>
+                  </label>
+                </div>
               <% }); %>
             <% } else { %>
               <p>No scanners configured.</p>
@@ -35,32 +47,82 @@
         </div>
       </form>
 
-      <% if (selectedScanners.length > 0) { %>
-        <h2 class="subtitle">Selected Scanners</h2>
-        <ul>
-          <% selectedScanners.forEach(function(scanner) { %>
-            <li><%= scanner %></li>
+      <!-- ... -->
+      <h2 class="subtitle">Selected Scanners</h2>
+      <ul id="selectedScannersList">
+        <% if (selectedScanners.length > 0) { %>
+          <% selectedScanners.forEach((scanner) => { %>
+            <li>
+              <%= scanner.name %>
+              <ul>
+                <% const scannerXmlData = xmlData.find((data) => data.scanner === scanner.name); %>
+                <% if (scannerXmlData && scannerXmlData.xmlData) { %>
+                  <% scannerXmlData.xmlData.forEach((xml) => { %>
+                    <li><%= xml %></li>
+                  <% }); %>
+                <% } %>
+              </ul>
+            </li>
           <% }); %>
-        </ul>
-      <% } %>
+        <% } else { %>
+          <li>No scanners selected.</li>
+        <% } %>
+      </ul>
     </div>
   </section>
 
   <script>
     const selectScannersForm = document.getElementById('selectScannersForm');
-
-    selectScannersForm.addEventListener('submit', (event) => {
+    const selectedScannersList = document.getElementById('selectedScannersList');
+    
+    selectScannersForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-
+    
       const selectedScanners = Array.from(document.querySelectorAll('input[name="selectedScanners"]:checked'))
         .map((input) => input.value);
-
+    
       console.log(selectedScanners); // Log the selected scanners
 
-      // Submit the form
-      selectScannersForm.submit();
-    });
-  </script>
+  const formData = new URLSearchParams();
+  selectedScanners.forEach(scanner => {
+    formData.append('selectedScanners', scanner);
+  });
 
+  const response = await fetch('/selected-scanners', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formData.toString(),
+  });
+
+  const scannerData = await response.json();
+  console.log(scannerData); // Log the scanner data
+
+  // Clear the existing list
+  selectedScannersList.innerHTML = '';
+
+  if (scannerData.length > 0) {
+    scannerData.forEach((scanner) => {
+      const listItem = document.createElement('li');
+      listItem.textContent = scanner.scanner;
+      selectedScannersList.appendChild(listItem);
+
+      if (scanner.xmlData) {
+        const nestedList = document.createElement('ul');
+        const nestedListItem = document.createElement('li');
+        nestedListItem.textContent = scanner.xmlData;
+        nestedList.appendChild(nestedListItem);
+        listItem.appendChild(nestedList);
+      }
+    });
+  } else {
+    const noScannersMessage = document.createElement('li');
+    noScannersMessage.textContent = 'No scanners selected.';
+    selectedScannersList.appendChild(noScannersMessage);
+  }
+});
+
+  </script>
 </body>
 </html>
